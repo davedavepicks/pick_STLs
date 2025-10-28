@@ -78,12 +78,15 @@ def gdrive_stls(auth_json_dict: dict, folder_id: str, recursive: bool = False, d
 
     try:
         # Authenticate using the provided JSON dictionary
-        credentials = google.auth.load_credentials_from_dict(
-            auth_json_dict,
-        )[0]
+        credentials, _ = google.auth.load_credentials_from_dict(
+            auth_json_dict, scopes=['https://www.googleapis.com/auth/drive.readonly']
+        )
 
         # Build the Drive API service
         drive_service = build('drive', 'v3', credentials=credentials)
+
+        top_folder_meta = drive_service.files().get(fileId=folder_id, fields='id, name, parents').execute()
+        folders[top_folder_meta['id']] = top_folder_meta
 
         # Query to list files in the specified folder
         query = f"'{folder_id}' in parents and trashed = false"
@@ -93,10 +96,10 @@ def gdrive_stls(auth_json_dict: dict, folder_id: str, recursive: bool = False, d
         # top level folder
         while True:
             response = drive_service.files().list(
-            q=query,
-            spaces='drive',
-            fields='nextPageToken, files(id, name, mimeType, modifiedTime, createdTime, size, parents)',
-            pageToken=page_token
+                q=query,
+                spaces='drive',
+                fields='nextPageToken, files(id, name, mimeType, modifiedTime, createdTime, size, parents)',
+                pageToken=page_token
             ).execute()
             results['files'].extend(response.get('files', []))
             page_token = response.get('nextPageToken', None)
@@ -104,45 +107,43 @@ def gdrive_stls(auth_json_dict: dict, folder_id: str, recursive: bool = False, d
                 break
 
         # recursion through subfolders
-        for file in results.get('files', [{}]):
+        for file in results.get('files', []): # Changed from [{}] to [] for safety
             if file['mimeType'] == 'application/vnd.google-apps.folder':
                 folders[file['id']] = file
-            elif file['mimeType'] == 'application/vnd.ms-pki.stl':
+            # Corrected mimeType for STL files
+            elif file['mimeType'] in ['application/vnd.ms-pki.stl', 'application/sla']:
                 stls[file['id']] = file
-        
+                
         if recursive:
             if isinstance(depth, int):
                 if _level == depth:
-                    if len(folders) > 0:
-                        print(f'Warning: stopping recursion at folder {folders[-1]['name']} due to depth of {depth} despite {len(folders)} folders remaining.', end='\r')
+                    if any(f['mimeType'] == 'application/vnd.google-apps.folder' for f in results.get('files', [])):
+                        print(f'Warning: stopping recursion at depth {depth}.', end='\r')
                     return stls
-            if len(folders) > 0:
-                for f in folders:
-                    subfolders, sub_stls = gdrive_stls(auth_json_dict, f['id'], recursive, depth, _level=_level+1)  # , sub_items
-                    if len(subfolders) == 0:
-                        pass
-                        print(f'No subfolders remaining in folder {f['name']} at level {_level+1}.                  ', end='\r')
+            
+            current_subfolders = [f for f in results.get('files', []) if f['mimeType'] == 'application/vnd.google-apps.folder']
 
-                    for sf in subfolders:
-                        folders[sf['id']] = sf
-                    for sstl in sub_stls:
-                        stls[sstl['id']] = sstl
+            if len(current_subfolders) > 0:
+                for f in current_subfolders:
+                    # The recursive call returns a dictionary of STLs, not folders
+                    sub_stls = gdrive_stls(auth_json_dict, f['id'], recursive, depth, _level=_level+1)
+                    stls.update(sub_stls) # Merge the dictionaries
 
-        for gd_item in {**stls, **folders}.values():
-            if 'parent_folder' not in gd_item.keys():
+        for gd_item in stls.values():
+            if 'parent_folder' not in gd_item:
                 pid = gd_item['parents'][0]
-                for folder in folders:
-                    parent_folder = ''
-                    if folder['id'] == pid:
-                        parent_folder = folder['name']
-                        gd_item['parent_folder'] = parent_folder
-                        break
-                continue
+                # The parent folder should now always be in the folders dictionary
+                if pid in folders:
+                    gd_item['parent_folder'] = folders[pid]['name']
+                else:
+                    # This case should be rare, but is good for debugging
+                    gd_item['parent_folder'] = 'Unknown'
 
-        return stls  #, items
+
+        return stls
 
     except Exception as e:
-        raise ValueError(f'Folder ID {folder_id} not found on Google Drive. Does not exist, or permissions do not allow read.')
+        raise ValueError(f'Folder ID {folder_id} not found on Google Drive. Does not exist, or permissions do not allow read. Original error: {e}')
 
 
 def download_drive_file(auth_json_dict: dict, drive_file_url: str, output_filepath: str):
@@ -261,14 +262,16 @@ def main():
         
     ddp_stls = {}
 
-    ddp_stls = gdrive_stls(  #, ddp_items
+    ddp_stls = gdrive_stls(
         auth_json_dict=gdrive_auth,
         folder_id=folder_id,
-        recursive=True,
-        depth=3,
+        recursive=False,
+        # depth=3,
     )
 
-    stldf = pd.DataFrame.from_dict(ddp_stls).drop(columns=['parents', 'mimeType'])
+    stldf = pd.DataFrame.from_dict(ddp_stls.values())
+
+    stldf = stldf.drop(columns=['parents', 'mimeType'])
     stldf['createdTime'] = pd.to_datetime(stldf['createdTime'], utc=True)
     stldf['modifiedTime'] = pd.to_datetime(stldf['modifiedTime'], utc=True)
     stldf['size'] = stldf['size'].astype('int32')
