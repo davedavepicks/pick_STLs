@@ -265,8 +265,8 @@ def main():
     ddp_stls = gdrive_stls(
         auth_json_dict=gdrive_auth,
         folder_id=folder_id,
-        recursive=False,
-        # depth=3,
+        recursive=True,
+        depth=3,
     )
 
     stldf = pd.DataFrame.from_dict(ddp_stls.values())
