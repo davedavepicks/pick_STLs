@@ -73,7 +73,7 @@ def gdrive_stls(auth_json_dict: dict, folder_id: str, recursive: bool = False, d
     Returns:
         A dictionary of STL files in the folder.
     """
-    print(f'Fetching STLs from Google Drive.')
+
     stls = {}
     folders = {}
 
@@ -260,7 +260,8 @@ def main():
     except ValueError as e:
         msg = str(e)
         sys.exit(msg + '\nSet GDRIVE_FOLDER_ID.')
-        
+
+    print(f'Fetching STLs from Google Drive.')
     ddp_stls = {}
 
     ddp_stls = gdrive_stls(
