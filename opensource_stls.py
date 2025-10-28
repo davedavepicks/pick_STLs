@@ -321,3 +321,6 @@ def main():
             print(f'Skipping {info['name']}.')
     
     print('Commit and push to complete the process and opensource the downloaded STLs.')
+
+if __name__ == '__main__':
+    main()
