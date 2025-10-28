@@ -291,9 +291,33 @@ def main():
             folder = input(f'Enter new folder name? (currently {info["parent_folder"]}):')
             if folder == '':
                 folder = info["folder"]
+            try:
+                draft_description = df[df['Plectrum'].str.lower() == name.replace('.stl','')]['Long Description'].iloc[0].values
+            except Exception as _:
+                draft_description = ''
+            
             os.makedirs(f'davedavepicks_stls/{folder}', exist_ok=True)
             download_drive_file(
                 auth_json_dict=gdrive_auth,
                 drive_file_url='https://drive.google.com/file/d/' + info["id"],
                 output_filepath=f"davedavepicks_stls/{folder}/{name}"
             )
+            readme_path = f'davedavepicks_stls/{folder}/README.md'
+            if draft_description != '':
+                with open(readme_path, 'w') as readme:
+                    readme.write(f'# {folder}\n\n')
+                    readme.write(f'## {name}\n\n')
+                    readme.write(draft_description)
+                print(f'A draft description was found and has been written to {readme_path}.')
+                print('Review before committing.')
+            else:
+                with open(readme_path, 'w') as readme:
+                    readme.write(f'# {folder}\n\n')
+                    readme.write(f'## {name}\n\n')
+                    readme.write('Placeholder.')
+                print(f'A draft description could not be found. A placeholder has been written to {readme_path}.')
+                print('Review before committing.')
+        else:
+            print(f'Skipping {info['name']}.')
+    
+    print('Commit and push to complete the process and opensource the downloaded STLs.')
