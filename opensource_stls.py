@@ -25,6 +25,7 @@ def fetch_private_github_file(
     ref: str | None = os.getenv("GITHUB_REF", None),
     github_token: str | None = None,
 ) -> bytes:
+    print('Fetching data from github')
     token = github_token or os.getenv("GITHUB_TOKEN")
     if not token:
         raise RuntimeError("Set GITHUB_TOKEN (PAT with repo scope or Contents:Read on the repo).")
@@ -293,7 +294,7 @@ def main():
                 name = name + '.stl'
             folder = input(f'Enter new folder name? (currently {info["parent_folder"]}):')
             if folder == '':
-                folder = info["folder"]
+                folder = info["parent_folder"]
             try:
                 draft_description = df[df['Plectrum'].str.lower() == name.replace('.stl','')]['Long Description'].iloc[0].values
             except Exception as _:
