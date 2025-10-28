@@ -253,6 +253,7 @@ def main():
     df = df[df['Materials'].str.contains('resin', na=False) & (df['Publish'] == True)].drop(columns=['Publish', 'Make time (3d printed)', 'Make time (handmade)', 'Make time (cast)', 'Image folder']).dropna()
     
     print(f'Found {len(df)} published resin Plectrum designs in the database.')
+    print(df)
 
     os.makedirs('davedavepicks_stls', exist_ok=True)
     try:
