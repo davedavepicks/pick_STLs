@@ -311,8 +311,14 @@ def main():
                 output_filepath=f"davedavepicks_stls/{folder}/{name}"
             )
             readme_path = f'davedavepicks_stls/{folder}/README.md'
+            if os.path.exists(readme_path):
+                appending_readme = True
+            else:
+                appending_readme = False
             if draft_description != '':
-                with open(readme_path, 'w') as readme:
+                with open(readme_path, 'a') as readme:
+                    if appending_readme:
+                        readme.write('\n\n---\n\n')
                     readme.write(f'# {folder}\n\n')
                     readme.write(f'## {name}\n\n')
                     readme.write(draft_description)
