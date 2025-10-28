@@ -139,8 +139,6 @@ def gdrive_stls(auth_json_dict: dict, folder_id: str, recursive: bool = False, d
                 else:
                     # This case should be rare, but is good for debugging
                     gd_item['parent_folder'] = 'Unknown'
-
-        print(f'Found {len(stls)} STL files in Google Drive folder.')
         return stls
 
     except Exception as e:
@@ -273,6 +271,8 @@ def main():
     )
 
     stldf = pd.DataFrame.from_dict(ddp_stls.values())
+    
+    print(f'Found {len(stldf)} STL files on Google Drive.')
 
     stldf = stldf.drop(columns=['parents', 'mimeType'])
     stldf['createdTime'] = pd.to_datetime(stldf['createdTime'], utc=True)
