@@ -73,7 +73,7 @@ def gdrive_stls(auth_json_dict: dict, folder_id: str, recursive: bool = False, d
     Returns:
         A dictionary of STL files in the folder.
     """
-
+    print(f'Fetching STLs from Google Drive.')
     stls = {}
     folders = {}
 
@@ -140,7 +140,7 @@ def gdrive_stls(auth_json_dict: dict, folder_id: str, recursive: bool = False, d
                     # This case should be rare, but is good for debugging
                     gd_item['parent_folder'] = 'Unknown'
 
-
+        print(f'Found {len(stls)} STL files in Google Drive folder.')
         return stls
 
     except Exception as e:
@@ -253,6 +253,8 @@ def main():
     assert df is not None, sys.exit("Problem getting data from repo.")
     
     df = df[df['Materials'].str.contains('resin', na=False) & (df['Publish'] == True)].drop(columns=['Publish', 'Make time (3d printed)', 'Make time (handmade)', 'Make time (cast)', 'Image folder']).dropna()
+    
+    print(f'Found {len(df)} published resin Plectrum designs in the database.')
 
     os.makedirs('davedavepicks_stls', exist_ok=True)
     try:
