@@ -381,7 +381,9 @@ def main():
                 print(f'{bcolors.OKGREEN}A draft description was found and has been written to {readme_path}.{bcolors.ENDC}')
                 print(f'{bcolors.WARNING}Review before committing.{bcolors.ENDC}')
             else:
-                with open(readme_path, 'w') as readme:
+                with open(readme_path, 'a') as readme:
+                    if appending_readme:
+                        readme.write('\n\n---\n\n')
                     readme.write(f'# {folder}\n\n')
                     readme.write(f'## {name}\n\n')
                     readme.write('Placeholder.')
