@@ -308,6 +308,9 @@ def main():
             print(f'After removing skipped STLs, {len(stldf)} remain to consider.')
     else:
         print(f'No STLs have yet been opensourced. {len(stldf)} remain to consider.')
+        with open('ddp_stls_opensourced.csv', 'a') as log:
+            log.write('id,name,folder,action\n')
+        
     # User decision making
     os.system('rm -rf davedavepicks_stls')
     print('Starting STL opensourcing process.\nIf you choose to exit, you can continue by choosing existing files next time.\n')
