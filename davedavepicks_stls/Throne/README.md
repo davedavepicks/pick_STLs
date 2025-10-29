@@ -1,5 +1,0 @@
-# Throne
-
-## throne.stl
-
-Placeholder.
