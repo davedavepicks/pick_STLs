@@ -270,7 +270,7 @@ def main():
         df = df[df['Plectrum'] != 'Custom']
 
         print(f'Found {bcolors.OKCYAN}{len(df)}{bcolors.ENDC} published resin Plectrum designs in the database.')
-        print(f'{bcolors.HEADER}Picks in DB:\n{bcolors.ENDC}')
+        print(f'{bcolors.HEADER}Picks in DB:{bcolors.ENDC}')
         for p in df['Plectrum'].to_list():
             print(f'\t- {bcolors.OKGREEN}{p}{bcolors.ENDC}')
 
@@ -309,6 +309,10 @@ def main():
     try:
         stldf = pd.read_csv('ddp_stls_list.csv')
         df = pd.read_csv('ddp_stls_db.csv')
+        print(f'Found {bcolors.OKCYAN}{len(df)}{bcolors.ENDC} published resin Plectrum designs in the database.')
+        print(f'{bcolors.HEADER}Picks in DB:{bcolors.ENDC}')
+        for p in df['Plectrum'].to_list():
+            print(f'\t- {bcolors.OKGREEN}{p}{bcolors.ENDC}')
     except Exception as e:
         sys.exit(f'Problem reading ddp_stls_list.csv or ddp_stls_db.csv: {e.with_traceback}')
     if os.path.exists('ddp_stls_opensourced.csv'):
