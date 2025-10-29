@@ -1,3 +1,6 @@
 *.ipynb
 __pycache__
 *.csv
+
+# temporary rules
+davedavepicks_stls/
