@@ -29,6 +29,40 @@ API_HEADERS = {
     "X-GitHub-Api-Version": "2022-11-28",
 }
 
+try:
+    github_token_path = os.environ['GITHUB_TOKEN_PATH']
+except ValueError as e:
+    msg = str(e)
+    sys.exit(msg + "\nSet GITHUB_TOKEN_PATH")
+
+github_token = None
+try:
+    with open(github_token_path) as f:
+        github_token = f.read().strip()
+except Exception as e:
+    sys.exit(str(e))
+try:
+    assert github_token is not None
+except AssertionError as e:
+    sys.exit(str(e))
+
+try:
+    gdrive_auth_path = os.environ['GDRIVE_AUTH_PATH']
+except ValueError as e:
+    msg = str(e)
+    sys.exit(msg + '\nSet GDRIVE_AUTH_PATH.')
+
+gdrive_auth = None
+try:
+    with open(gdrive_auth_path) as f:
+        gdrive_auth = json.load(f)
+except Exception as e:
+    sys.exit(str(e))
+try:
+    assert isinstance(gdrive_auth, dict)
+except AssertionError as e:
+    sys.exit(str(e))    
+
 def fetch_private_github_file(
     owner: str = os.getenv("GITHUB_OWNER", "davedavepicks"),
     repo: str = os.getenv("GITHUB_REPO", "pick_db"),
@@ -224,39 +258,7 @@ def main():
         existing_csvs = True
         input_response = input(f'{bcolors.OKGREEN}ddp_stls_list.csv and ddp_stls_db.csv already exist. Do you want to:\n\t1: Use existing files\n\t2: Re-fetch from source\nEnter 1 or 2: {bcolors.ENDC}')
     if input_response == '2' or not existing_csvs:
-        try:
-            github_token_path = os.environ['GITHUB_TOKEN_PATH']
-        except ValueError as e:
-            msg = str(e)
-            sys.exit(msg + "\nSet GITHUB_TOKEN_PATH")
         
-        github_token = None
-        try:
-            with open(github_token_path) as f:
-                github_token = f.read().strip()
-        except Exception as e:
-            sys.exit(str(e))
-        try:
-            assert github_token is not None
-        except AssertionError as e:
-            sys.exit(str(e))
-        
-        try:
-            gdrive_auth_path = os.environ['GDRIVE_AUTH_PATH']
-        except ValueError as e:
-            msg = str(e)
-            sys.exit(msg + '\nSet GDRIVE_AUTH_PATH.')
-
-        gdrive_auth = None
-        try:
-            with open(gdrive_auth_path) as f:
-                gdrive_auth = json.load(f)
-        except Exception as e:
-            sys.exit(str(e))
-        try:
-            assert isinstance(gdrive_auth, dict)
-        except AssertionError as e:
-            sys.exit(str(e))    
         df = None
         if github_token:
             csv_bytes = fetch_private_github_file(github_token=github_token)
