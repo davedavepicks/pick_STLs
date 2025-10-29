@@ -250,7 +250,8 @@ def main():
 
     assert df is not None, sys.exit("Problem getting data from repo.")
     
-    df = df[df['Materials'].str.contains('resin', na=False) & (df['Publish'] == True)].drop(columns=['Publish', 'Make time (3d printed)', 'Make time (handmade)', 'Make time (cast)', 'Image folder']).dropna()
+    df = df[df['Materials'].str.contains('resin', na=False) & (df['Publish'] == True)].drop(columns=['Publish', 'Make time (3d printed)', 'Make time (handmade)', 'Make time (cast)', 'Image folder', 'Methods', 'Materials', 'Tools and consumables', 'Description', 'STL file'], axis=1).dropna()
+    df = df[df['Plectrum'] != 'Custom']
     
     print(f'Found {len(df)} published resin Plectrum designs in the database.')
     print(df)
