@@ -12,6 +12,17 @@ from googleapiclient.http import MediaIoBaseDownload
 import json
 from tqdm import tqdm
 
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
 API_BASE = "https://api.github.com"
 API_HEADERS = {
     "Accept": "application/vnd.github.v3.raw",
@@ -119,7 +130,7 @@ def gdrive_stls(auth_json_dict: dict, folder_id: str, recursive: bool = False, d
             if isinstance(depth, int):
                 if _level == depth:
                     if any(f['mimeType'] == 'application/vnd.google-apps.folder' for f in results.get('files', [])):
-                        print(f'Warning: stopping recursion at depth {depth}.', end='\r')
+                        print(f'{bcolors.WARNING}Warning: stopping recursion at depth {depth}.{bcolors.ENDC}', end='\r')
                     return stls
             
             current_subfolders = [f for f in results.get('files', []) if f['mimeType'] == 'application/vnd.google-apps.folder']
@@ -185,7 +196,7 @@ def download_drive_file(auth_json_dict: dict, drive_file_url: str, output_filepa
         file_metadata = drive_service.files().get(fileId=file_id, fields='name, size').execute()
         file_name = file_metadata.get('name')
         file_size = int(file_metadata.get('size', 0))
-        print(f"Downloading file: '{file_name}'")
+        print(f"{bcolors.OKCYAN}Downloading file: '{file_name}'{bcolors.ENDC}")
 
         # Download the file
         request = drive_service.files().get_media(fileId=file_id)
@@ -211,7 +222,7 @@ def main():
     existing_csvs = False
     if os.path.exists('ddp_stls_list.csv') and os.path.exists('ddp_stls_db.csv'):
         existing_csvs = True
-        input_response = input('ddp_stls_list.csv and ddp_stls_db.csv already exist. Do you want to:\n\t1: Use existing files\n\t2: Re-fetch from source\nEnter 1 or 2: ')
+        input_response = input({bcolors.OKGREEN}'ddp_stls_list.csv and ddp_stls_db.csv already exist. Do you want to:\n\t1: Use existing files\n\t2: Re-fetch from source\nEnter 1 or 2: ')
     if input_response == '2' or not existing_csvs:
         try:
             github_token_path = os.environ['GITHUB_TOKEN_PATH']
@@ -257,8 +268,8 @@ def main():
         
         df = df[df['Materials'].str.contains('resin', na=False) & (df['Publish'] == True)].drop(columns=['Publish', 'Make time (3d printed)', 'Make time (handmade)', 'Make time (cast)', 'Image folder', 'Methods', 'Materials', 'Tools and consumables', 'Description', 'STL file'], axis=1).dropna()
         df = df[df['Plectrum'] != 'Custom']
-        
-        print(f'Found {len(df)} published resin Plectrum designs in the database.')
+
+        print(f'Found {bcolors.OKCYAN}{len(df)}{bcolors.ENDC} published resin Plectrum designs in the database.')
         print(df)
 
         os.makedirs('davedavepicks_stls', exist_ok=True)
@@ -319,20 +330,20 @@ def main():
         info = row[1]
         choice = ''
         # print(info)
-        print(f'Folder: {info["parent_folder"]}\n STL file: {info["name"]}\n Created: {info["createdTime"]}\n Modified: {info["modifiedTime"]}')  # noqa
+        print(f'Folder: {bcolors.OKGREEN}{info["parent_folder"]}{bcolors.ENDC}\n STL file: {bcolors.OKCYAN}{info["name"]}{bcolors.ENDC}\n Created: {bcolors.OKCYAN}{info["createdTime"]}{bcolors.ENDC}\n Modified: {bcolors.OKCYAN}{info["modifiedTime"]}{bcolors.ENDC}')  # noqa
         while choice not in ['1', '2', '3']:
             choice = input('Do you want to opensource this STL, skip or exit? \n\t1: Opensource this STL\n\t2: Skip this STL\n\t3: Exit\nEnter 1, 2 or 3: ')
         if choice == '3':
             print('Exiting.')
             sys.exit(0)
         if choice == '1':
-            print(f'{info["name"]} will be opensourced.')
-            name = input(f'Enter new name? (currently {info["name"]}):')
+            print(f'{bcolors.OKGREEN}{info["name"]} will be opensourced.{bcolors.ENDC}')
+            name = input(f'{bcolors.OKCYAN}Enter new name? (currently {info["name"]}):{bcolors.ENDC}')
             if name == '':
                 name = info["name"]
             elif '.stl' not in name:
                 name = name + '.stl'
-            folder = input(f'Enter new folder name? (currently {info["parent_folder"]}):')
+            folder = input(f'{bcolors.OKCYAN}Enter new folder name? (currently {info["parent_folder"]}):{bcolors.ENDC}')
             if folder == '':
                 folder = info["parent_folder"]
             try:
@@ -358,24 +369,24 @@ def main():
                     readme.write(f'# {folder}\n\n')
                     readme.write(f'## {name}\n\n')
                     readme.write(draft_description)
-                print(f'A draft description was found and has been written to {readme_path}.')
-                print('Review before committing.')
+                print(f'{bcolors.OKGREEN}A draft description was found and has been written to {readme_path}.{bcolors.ENDC}')
+                print(f'{bcolors.WARNING}Review before committing.{bcolors.ENDC}')
             else:
                 with open(readme_path, 'w') as readme:
                     readme.write(f'# {folder}\n\n')
                     readme.write(f'## {name}\n\n')
                     readme.write('Placeholder.')
-                print(f'A draft description could not be found. A placeholder has been written to {readme_path}.')
-                print('Review before committing.')
+                print(f'{bcolors.WARNING}A draft description could not be found. A placeholder has been written to {readme_path}.{bcolors.ENDC}')
+                print(f'{bcolors.WARNING}Review before committing.{bcolors.ENDC}')
             # Tracking progress
             with open('ddp_stls_opensourced.csv', 'a') as log:
                 log.write(f'{info["id"]},{name},{folder},opensource\n')
         elif choice == '2':
-            print(f'Skipping {info['name']}.')
+            print(f'{bcolors.WARNING}Skipping {info["name"]}.{bcolors.ENDC}')
             with open('ddp_stls_opensourced.csv', 'a') as log:
                 log.write(f'{info["id"]},{info["name"]},{info["parent_folder"]},skip\n')
-    
-    print('Commit and push to complete the process and opensource the downloaded STLs.')
+
+    print(f'{bcolors.OKGREEN}Commit and push to complete the process and opensource the downloaded STLs.{bcolors.ENDC}')
 
 if __name__ == '__main__':
     main()
