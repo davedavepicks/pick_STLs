@@ -207,90 +207,122 @@ def download_drive_file(auth_json_dict: dict, drive_file_url: str, output_filepa
         print(f"An unexpected error occurred: {e}")
 
 def main():
+    input_response = -1
+    existing_csvs = False
+    if os.path.exists('ddp_stls_list.csv') and os.path.exists('ddp_stls_db.csv'):
+        existing_csvs = True
+        input_response = input('ddp_stls_list.csv and ddp_stls_db.csv already exist. Do you want to:\n\t1: Use existing files\n\t2: Re-fetch from source\nEnter 1 or 2: ')
+    if input_response == '2' or not existing_csvs:
+        try:
+            github_token_path = os.environ['GITHUB_TOKEN_PATH']
+        except ValueError as e:
+            msg = str(e)
+            sys.exit(msg + "\nSet GITHUB_TOKEN_PATH")
+        
+        github_token = None
+        try:
+            with open(github_token_path) as f:
+                github_token = f.read().strip()
+        except Exception as e:
+            sys.exit(str(e))
+        try:
+            assert github_token is not None
+        except AssertionError as e:
+            sys.exit(str(e))
+        
+        try:
+            gdrive_auth_path = os.environ['GDRIVE_AUTH_PATH']
+        except ValueError as e:
+            msg = str(e)
+            sys.exit(msg + '\nSet GDRIVE_AUTH_PATH.')
 
-    try:
-        github_token_path = os.environ['GITHUB_TOKEN_PATH']
-    except ValueError as e:
-        msg = str(e)
-        sys.exit(msg + "\nSet GITHUB_TOKEN_PATH")
-    
-    github_token = None
-    try:
-        with open(github_token_path) as f:
-            github_token = f.read().strip()
-    except Exception as e:
-        sys.exit(str(e))
-    try:
-        assert github_token is not None
-    except AssertionError as e:
-        sys.exit(str(e))
-    
-    try:
-        gdrive_auth_path = os.environ['GDRIVE_AUTH_PATH']
-    except ValueError as e:
-        msg = str(e)
-        sys.exit(msg + '\nSet GDRIVE_AUTH_PATH.')
+        gdrive_auth = None
+        try:
+            with open(gdrive_auth_path) as f:
+                gdrive_auth = json.load(f)
+        except Exception as e:
+            sys.exit(str(e))
+        try:
+            assert isinstance(gdrive_auth, dict)
+        except AssertionError as e:
+            sys.exit(str(e))    
+        df = None
+        if github_token:
+            csv_bytes = fetch_private_github_file(github_token=github_token)
+            df = load_csv_from_bytes(csv_bytes)
+        else:
+            print("GitHub token not found.")
 
-    gdrive_auth = None
+        assert df is not None, sys.exit("Problem getting data from repo.")
+        
+        df = df[df['Materials'].str.contains('resin', na=False) & (df['Publish'] == True)].drop(columns=['Publish', 'Make time (3d printed)', 'Make time (handmade)', 'Make time (cast)', 'Image folder', 'Methods', 'Materials', 'Tools and consumables', 'Description', 'STL file'], axis=1).dropna()
+        df = df[df['Plectrum'] != 'Custom']
+        
+        print(f'Found {len(df)} published resin Plectrum designs in the database.')
+        print(df)
+
+        os.makedirs('davedavepicks_stls', exist_ok=True)
+        try:
+            folder_id = os.environ['GDRIVE_FOLDER_ID']
+        except ValueError as e:
+            msg = str(e)
+            sys.exit(msg + '\nSet GDRIVE_FOLDER_ID.')
+
+        print(f'Fetching STLs from Google Drive.')
+        ddp_stls = {}
+
+        ddp_stls = gdrive_stls(
+            auth_json_dict=gdrive_auth,
+            folder_id=folder_id,
+            recursive=True,
+            depth=3,
+        )
+
+        stldf = pd.DataFrame.from_dict(ddp_stls.values())
+        
+        print(f'Found {len(stldf)} STL files on Google Drive.')
+
+        stldf = stldf.drop(columns=['parents', 'mimeType'])
+        stldf['createdTime'] = pd.to_datetime(stldf['createdTime'], utc=True)
+        stldf['modifiedTime'] = pd.to_datetime(stldf['modifiedTime'], utc=True)
+        stldf['size'] = stldf['size'].astype('int32')
+        stldf.sort_values(by=['modifiedTime'], ascending=False, inplace=True)
+        
+        stldf.to_csv('ddp_stls_list.csv', index=True)
+        df.to_csv('ddp_stls_db.csv', index=True)
+        del df, stldf
+        
+    # Read back in from file to handle both cases
     try:
-        with open(gdrive_auth_path) as f:
-            gdrive_auth = json.load(f)
+        stldf = pd.read_csv('ddp_stls_list.csv')
+        df = pd.read_csv('ddp_stls_db.csv')
     except Exception as e:
-        sys.exit(str(e))
-    try:
-        assert isinstance(gdrive_auth, dict)
-    except AssertionError as e:
-        sys.exit(str(e))    
-    df = None
-    if github_token:
-        csv_bytes = fetch_private_github_file(github_token=github_token)
-        df = load_csv_from_bytes(csv_bytes)
+        sys.exit(f'Problem reading ddp_stls_list.csv or ddp_stls_db.csv: {e.with_traceback}')
+    if os.path.exists('ddp_stls_opensourced.csv'):
+        opensourced_df = pd.read_csv('ddp_stls_opensourced.csv', header=None, names=['id', 'name', 'parent_folder', 'action'])
+        stldf = stldf[~stldf['id'].isin(opensourced_df['id'])]
+        print(f'{len(opensourced_df)} STLs have previously been opensourced or skipped. {len(stldf)} remain to consider.')
+        remove_skipped = input('Would you like to remove previously skipped STLs from consideration? (y/n): ')
+        if remove_skipped.lower() == 'y':
+            stldf = stldf[~stldf['id'].isin(opensourced_df[opensourced_df['action'] == 'skip']['id'])]
+            print(f'After removing skipped STLs, {len(stldf)} remain to consider.')
     else:
-        print("GitHub token not found.")
-
-    assert df is not None, sys.exit("Problem getting data from repo.")
-    
-    df = df[df['Materials'].str.contains('resin', na=False) & (df['Publish'] == True)].drop(columns=['Publish', 'Make time (3d printed)', 'Make time (handmade)', 'Make time (cast)', 'Image folder', 'Methods', 'Materials', 'Tools and consumables', 'Description', 'STL file'], axis=1).dropna()
-    df = df[df['Plectrum'] != 'Custom']
-    
-    print(f'Found {len(df)} published resin Plectrum designs in the database.')
-    print(df)
-
-    os.makedirs('davedavepicks_stls', exist_ok=True)
-    try:
-        folder_id = os.environ['GDRIVE_FOLDER_ID']
-    except ValueError as e:
-        msg = str(e)
-        sys.exit(msg + '\nSet GDRIVE_FOLDER_ID.')
-
-    print(f'Fetching STLs from Google Drive.')
-    ddp_stls = {}
-
-    ddp_stls = gdrive_stls(
-        auth_json_dict=gdrive_auth,
-        folder_id=folder_id,
-        recursive=True,
-        depth=3,
-    )
-
-    stldf = pd.DataFrame.from_dict(ddp_stls.values())
-    
-    print(f'Found {len(stldf)} STL files on Google Drive.')
-
-    stldf = stldf.drop(columns=['parents', 'mimeType'])
-    stldf['createdTime'] = pd.to_datetime(stldf['createdTime'], utc=True)
-    stldf['modifiedTime'] = pd.to_datetime(stldf['modifiedTime'], utc=True)
-    stldf['size'] = stldf['size'].astype('int32')
-    stldf.sort_values(by=['modifiedTime'], ascending=False, inplace=True)
-
+        print(f'No STLs have yet been opensourced. {len(stldf)} remain to consider.')
     # User decision making
     os.system('rm -rf davedavepicks_stls')
+    print('Starting STL opensourcing process.\nIf you choose to exit, you can continue by choosing existing files next time.\n')
+    print('To avoid continuation, delete ddp_stls_list.csv, ddp_stls_db.csv and ddp_stls_opensourced.csv before running again.\n')
     for row in stldf.iterrows():
         info = row[1]
+        choice = ''
         # print(info)
         print(f'Folder: {info["parent_folder"]}\n STL file: {info["name"]}\n Created: {info["createdTime"]}\n Modified: {info["modifiedTime"]}')  # noqa
-        keep = input('Do you want to opensource this STL? (y/n)')
-        if keep == 'y':
+        while choice not in ['1', '2', '3']:
+            choice = input('Do you want to opensource this STL, skip or exit? \n\t1: Opensource this STL\n\t2: Skip this STL\n\t3: Exit\nEnter 1, 2 or 3: ')
+        if choice == '3':
+            print('Exiting.')
+            sys.exit(0)
+        if choice == '1':
             print(f'{info["name"]} will be opensourced.')
             name = input(f'Enter new name? (currently {info["name"]}):')
             if name == '':
@@ -332,8 +364,13 @@ def main():
                     readme.write('Placeholder.')
                 print(f'A draft description could not be found. A placeholder has been written to {readme_path}.')
                 print('Review before committing.')
-        else:
+            # Tracking progress
+            with open('ddp_stls_opensourced.csv', 'a') as log:
+                log.write(f'{info["id"]},{name},{folder},opensource\n')
+        elif choice == '2':
             print(f'Skipping {info['name']}.')
+            with open('ddp_stls_opensourced.csv', 'a') as log:
+                log.write(f'{info["id"]},{info["name"]},{info["parent_folder"]},skip\n')
     
     print('Commit and push to complete the process and opensource the downloaded STLs.')
 
