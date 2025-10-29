@@ -222,7 +222,7 @@ def main():
     existing_csvs = False
     if os.path.exists('ddp_stls_list.csv') and os.path.exists('ddp_stls_db.csv'):
         existing_csvs = True
-        input_response = input({bcolors.OKGREEN}'ddp_stls_list.csv and ddp_stls_db.csv already exist. Do you want to:\n\t1: Use existing files\n\t2: Re-fetch from source\nEnter 1 or 2: ')
+        input_response = input(f'{bcolors.OKGREEN}ddp_stls_list.csv and ddp_stls_db.csv already exist. Do you want to:\n\t1: Use existing files\n\t2: Re-fetch from source\nEnter 1 or 2: {bcolors.ENDC}')
     if input_response == '2' or not existing_csvs:
         try:
             github_token_path = os.environ['GITHUB_TOKEN_PATH']
