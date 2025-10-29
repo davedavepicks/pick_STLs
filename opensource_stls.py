@@ -270,7 +270,9 @@ def main():
         df = df[df['Plectrum'] != 'Custom']
 
         print(f'Found {bcolors.OKCYAN}{len(df)}{bcolors.ENDC} published resin Plectrum designs in the database.')
-        print(df)
+        print(f'{bcolors.HEADER}Picks in DB:\n{bcolors.ENDC}')
+        for p in df['Plectrum'].to_list():
+            print(f'\t- {bcolors.OKGREEN}{p}{bcolors.ENDC}')
 
         os.makedirs('davedavepicks_stls', exist_ok=True)
         try:
@@ -323,9 +325,10 @@ def main():
             log.write('id,name,folder,action\n')
         
     # User decision making
-    os.system('rm -rf davedavepicks_stls')
-    print('Starting STL opensourcing process.\nIf you choose to exit, you can continue by choosing existing files next time.\n')
-    print('To avoid continuation, delete ddp_stls_list.csv, ddp_stls_db.csv and ddp_stls_opensourced.csv before running again.\n')
+    # os.system('rm -rf davedavepicks_stls')
+    print(f'{bcolors.WARNING}Starting STL opensourcing process.\nIf you choose to exit, you can continue by choosing existing files next time.\n{bcolors.ENDC}')
+    print(f'{bcolors.WARNING}\t> To avoid continuation, delete ddp_stls_list.csv, ddp_stls_db.csv and ddp_stls_opensourced.csv before running again.{bcolors.ENDC}')
+    print(f'{bcolors.WARNING}\t> To completely start from scratch, delete the davedavepicks_stls/ folder too.{bcolors.ENDC}')
     for row in stldf.iterrows():
         info = row[1]
         choice = ''
