@@ -1,3 +1,5 @@
+![DaveDavePicks Logo](assets/images/logo.png)
+
 # DaveDavePicks Original pick designs as downloadable STL files
 
 A public, opensource set of original DaveDavePicks guitar pick 3-D files.
